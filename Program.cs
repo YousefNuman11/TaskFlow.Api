@@ -78,4 +78,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new
+    {
+        status = "OK",
+        service = "TaskFlow API",
+        time = DateTime.UtcNow
+    });
+})
+.WithName("HealthCheck")
+.WithOpenApi();
+
+
 app.Run();
