@@ -1,4 +1,5 @@
 using TaskFlow.Api.Models;
+using TaskFlow.Api.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,29 +30,51 @@ app.MapGet("/tasks{id:int}", (int id) =>
 
 //POST new task
 
-app.MapPost("/tasks", (TaskItem task) =>
+app.MapPost("/tasks", (CreateTaskDtos dto) =>
 {
-    task.Id = tasks.Count + 1;
+    if (string.IsNullOrWhiteSpace(dto.Title))
+    {
+        return Results.BadRequest("Title is required");
+    }
+
+    var task = new TaskItem
+    {
+        Id = tasks.Count + 1,
+        Title = dto.Title,
+        IsCompleted = false
+    };
+
     tasks.Add(task);
     return Results.Created($"/tasks/{task.Id}", task);
+
 })
 .WithName("CreateTask")
 .WithOpenApi();
 
+
 //PUT update task
 
-app.MapPut("/tasks/{id:int}", (int id, TaskItem updatedTask) =>
+app.MapPut("/tasks/{id:int}", (int id, UpdateTaskDto dto) =>
 {
     var task = tasks.FirstOrDefault(t => t.Id == id);
-    if (task is null) return Results.NotFound();
+    if (task is null)
+    {
+        return Results.NotFound();
+    }
 
-    task.Title = updatedTask.Title;
-    task.IsCompleted = updatedTask.IsCompleted;
+    if (string.IsNullOrWhiteSpace(dto.Title))
+    {
+        return Results.BadRequest("Title is requird");
+    }
+
+    task.Title = dto.Title;
+    task.IsCompleted = dto.IsCompleted;
 
     return Results.Ok(task);
 })
-.WithName("UpdatedTask")
+.WithName("UpdateTask")
 .WithOpenApi();
+
 
 //DELETE task
 
