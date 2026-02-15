@@ -1,5 +1,7 @@
 using TaskFlow.Api.DTOs;
 using TaskFlow.Api.Models;
+using TaskFlow.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskFlow.Api.Endpoints;
 
@@ -7,19 +9,22 @@ public static class TaskEndpoints
 {
     public static void MapTaskEndpoints(this WebApplication app)
     {
-        var tasks = new List<TaskItem>();
+
 
         //get all tasks
 
-        app.MapGet("/tasks", () => tasks)
-            .WithName("GetTasks")
-            .WithOpenApi();
+        app.MapGet("/tasks", async(AppDbContext db) => {
+            var tasks = await db.Tasks.ToListAsync();
+            return Results.Ok(tasks);
+        })
+        .WithName("GetTasks")
+        .WithOpenApi();
 
         //GET task by Id
 
-        app.MapGet("/tasks{id:int}", (int id) =>
+        app.MapGet("/tasks{id:int}", async(int id, AppDbContext db) =>
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
+            var task = await db.Tasks.FindAsync(id);
             return task is not null ? Results.Ok(task) : Results.NotFound();
         })
         .WithName("GetTaskById")
@@ -28,7 +33,7 @@ public static class TaskEndpoints
 
         //POST new task
 
-        app.MapPost("/tasks", (CreateTaskDtos dto) =>
+        app.MapPost("/tasks", async(CreateTaskDtos dto, AppDbContext db) =>
         {
             if (string.IsNullOrWhiteSpace(dto.Title))
             {
@@ -37,12 +42,12 @@ public static class TaskEndpoints
 
             var task = new TaskItem
             {
-                Id = tasks.Count + 1,
                 Title = dto.Title,
                 IsCompleted = false
             };
 
-            tasks.Add(task);
+            db.Tasks.Add(task);
+            await db.SaveChangesAsync();
             return Results.Created($"/tasks/{task.Id}", task);
 
         })
@@ -51,9 +56,9 @@ public static class TaskEndpoints
 
         //PUT update task
 
-        app.MapPut("/tasks/{id:int}", (int id, UpdateTaskDto dto) =>
+        app.MapPut("/tasks/{id:int}", async(int id, UpdateTaskDto dto, AppDbContext db) =>
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
+            var task = await db.Tasks.FindAsync(id);
             if (task is null)
             {
                 return Results.NotFound();
@@ -67,6 +72,8 @@ public static class TaskEndpoints
             task.Title = dto.Title;
             task.IsCompleted = dto.IsCompleted;
 
+            await db.SaveChangesAsync();
+
             return Results.Ok(task);
         })
         .WithName("UpdateTask")
@@ -75,12 +82,15 @@ public static class TaskEndpoints
 
         //DELETE task
 
-        app.MapDelete("/task/{id:int}", (int id) =>
+        app.MapDelete("/task/{id:int}", async(int id, AppDbContext db) =>
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
+            var task = await db.Tasks.FindAsync(id);
             if (task is null) return Results.NotFound();
 
-            tasks.Remove(task);
+            db.Tasks.Remove(task);
+
+            await db.SaveChangesAsync();
+
             return Results.NoContent();
         })
         .WithName("DeleteTask")
