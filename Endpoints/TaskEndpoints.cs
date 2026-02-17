@@ -2,6 +2,7 @@ using TaskFlow.Api.DTOs;
 using TaskFlow.Api.Models;
 using TaskFlow.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using TaskFlow.Api.Services;
 
 namespace TaskFlow.Api.Endpoints;
 
@@ -13,90 +14,49 @@ public static class TaskEndpoints
 
         //get all tasks
 
-        app.MapGet("/tasks", async(AppDbContext db) => {
-            var tasks = await db.Tasks.ToListAsync();
+        app.MapGet("/tasks", async(TaskService service) => {
+            var tasks = await service.GetAllAsync();
             return Results.Ok(tasks);
-        })
-        .WithName("GetTasks")
-        .WithOpenApi();
+        });
 
         //GET task by Id
 
-        app.MapGet("/tasks{id:int}", async(int id, AppDbContext db) =>
+        app.MapGet("/tasks{id:int}", async(int id, TaskService service) =>
         {
-            var task = await db.Tasks.FindAsync(id);
+            var task = await service.GetByIdAsync(id);
             return task is not null ? Results.Ok(task) : Results.NotFound();
-        })
-        .WithName("GetTaskById")
-        .WithOpenApi();
+        });
 
 
         //POST new task
 
-        app.MapPost("/tasks", async(CreateTaskDtos dto, AppDbContext db) =>
+        app.MapPost("/tasks", async(CreateTaskDtos dto, TaskService service) =>
         {
             if (string.IsNullOrWhiteSpace(dto.Title))
             {
                 return Results.BadRequest("Title is required");
             }
 
-            var task = new TaskItem
-            {
-                Title = dto.Title,
-                IsCompleted = false
-            };
-
-            db.Tasks.Add(task);
-            await db.SaveChangesAsync();
+            var task = await service.CreateAsync(dto);
             return Results.Created($"/tasks/{task.Id}", task);
 
-        })
-        .WithName("CreateTask")
-        .WithOpenApi();
+        });
 
         //PUT update task
 
-        app.MapPut("/tasks/{id:int}", async(int id, UpdateTaskDto dto, AppDbContext db) =>
+        app.MapPut("/tasks/{id:int}", async(int id, UpdateTaskDto dto, TaskService service) =>
         {
-            var task = await db.Tasks.FindAsync(id);
-            if (task is null)
-            {
-                return Results.NotFound();
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.Title))
-            {
-                return Results.BadRequest("Title is requird");
-            }
-
-            task.Title = dto.Title;
-            task.IsCompleted = dto.IsCompleted;
-
-            await db.SaveChangesAsync();
-
-            return Results.Ok(task);
-        })
-        .WithName("UpdateTask")
-        .WithOpenApi();
+            var task = await service.UpdateAsync(id, dto);
+            return task is null ? Results.NotFound() : Results.Ok(task);
+        });
 
 
         //DELETE task
 
-        app.MapDelete("/task/{id:int}", async(int id, AppDbContext db) =>
+        app.MapDelete("/task/{id:int}", async(int id, TaskService service) =>
         {
-            var task = await db.Tasks.FindAsync(id);
-            if (task is null) return Results.NotFound();
-
-            db.Tasks.Remove(task);
-
-            await db.SaveChangesAsync();
-
-            return Results.NoContent();
-        })
-        .WithName("DeleteTask")
-        .WithOpenApi();
-
-
-
+            var success = await service.DeleteAsync(id);
+            return success ? Results.NoContent() : Results.NotFound();
+        });
     }
 }
