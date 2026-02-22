@@ -17,7 +17,7 @@ public static class TaskEndpoints
         app.MapGet("/tasks", async(TaskService service) => {
             var tasks = await service.GetAllAsync();
             return Results.Ok(tasks);
-        });
+        }).RequireAuthorization();
 
         //GET task by Id
 
