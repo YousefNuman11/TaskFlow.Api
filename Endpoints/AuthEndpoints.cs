@@ -1,8 +1,14 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TaskFlow.Api.Data;
+using TaskFlow.Api.DTOs;
+using TaskFlow.Api.Models;
+
+
+namespace TaskFlow.Api.Endpoints;
 
 public static class AuthEndpoints
 {
@@ -10,29 +16,34 @@ public static class AuthEndpoints
     {
         app.MapPost("/register", async (AppDbContext db, RegisterDto dto) =>
         {
+            // Check if user exists
+            var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (existingUser != null)
+            {
+                return Results.BadRequest("User already exists");
+            }
+
             var user = new User
             {
                 Email = dto.Email,
-                PasswordHash = PasswordHasher.Hash(dto.Password)
+                // Use the FULL namespace to avoid conflicts
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
 
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            return Results.Ok();
+            return Results.Ok("User registered successfully");
         });
-
 
         app.MapPost("/login", async (AppDbContext db, LoginDto dto) =>
         {
-            var hash = PasswordHasher.Hash(dto.Password);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
 
-            var user = db.Users.FirstOrDefault(u =>
-                u.Email == dto.Email &&
-                u.PasswordHash == hash);
-            if (user is null)
+            // Use the FULL namespace here too
+            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
-                return Results.Unauthorized();   
+                return Results.Unauthorized();
             }
 
             var claims = new[]
@@ -47,14 +58,11 @@ public static class AuthEndpoints
 
             var token = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
+                expires: DateTime.UtcNow.AddHours(24),
                 signingCredentials: creds);
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-
             return Results.Ok(new { token = jwt });
-
-
         });
     }
 }

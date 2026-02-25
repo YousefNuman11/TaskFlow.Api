@@ -21,11 +21,11 @@ public static class TaskEndpoints
 
         //GET task by Id
 
-        app.MapGet("/tasks{id:int}", async(int id, TaskService service) =>
+        app.MapGet("/tasks/{id:int}", async(int id, TaskService service) =>
         {
             var task = await service.GetByIdAsync(id);
             return task is not null ? Results.Ok(task) : Results.NotFound();
-        });
+        }).RequireAuthorization();
 
 
         //POST new task
@@ -37,10 +37,15 @@ public static class TaskEndpoints
                 return Results.BadRequest("Title is required");
             }
 
+            if (dto.Title.Length > 200)
+            {
+                return Results.BadRequest("Title cannot exceed 200 characters");
+            }
+
             var task = await service.CreateAsync(dto);
             return Results.Created($"/tasks/{task.Id}", task);
 
-        });
+        }).RequireAuthorization();
 
         //PUT update task
 
@@ -48,15 +53,15 @@ public static class TaskEndpoints
         {
             var task = await service.UpdateAsync(id, dto);
             return task is null ? Results.NotFound() : Results.Ok(task);
-        });
+        }).RequireAuthorization();
 
 
         //DELETE task
 
-        app.MapDelete("/task/{id:int}", async(int id, TaskService service) =>
+        app.MapDelete("/tasks/{id:int}", async(int id, TaskService service) =>
         {
             var success = await service.DeleteAsync(id);
             return success ? Results.NoContent() : Results.NotFound();
-        });
+        }).RequireAuthorization();
     }
 }

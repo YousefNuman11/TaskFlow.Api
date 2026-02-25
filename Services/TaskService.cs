@@ -46,7 +46,10 @@ public class TaskService
         var task = new TaskItem
         {
             Title = dto.Title,
-            IsCompleted = false
+            Description = dto.Description,
+            DueDate = dto.DueDate,
+            Status = dto.Status,
+            CreatedAt = DateTime.UtcNow
         };
 
         _db.Tasks.Add(task);
@@ -71,7 +74,10 @@ public class TaskService
         }
 
         task.Title = dto.Title;
-        task.IsCompleted = dto.IsCompleted;
+        task.Description = dto.Description ?? task.Description;
+        task.DueDate = dto.DueDate;
+        task.Status = dto.Status;
+        task.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
 

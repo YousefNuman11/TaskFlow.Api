@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskFlow.Api.Models;
+
+
 namespace TaskFlow.Api.Data;
 
 public class AppDbContext : DbContext
@@ -9,7 +11,22 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<TaskItem> Tasks { get; set; }
 
-    public DbSet<User> Users => Set<User>();
+    public DbSet<User> Users { get; set;}
+
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Tasks)
+            .WithOne()
+            .HasForeignKey("UserId");
+            
+        base.OnModelCreating(modelBuilder);
+    }
+
+
+
+
 }
