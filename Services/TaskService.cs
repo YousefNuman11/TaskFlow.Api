@@ -17,21 +17,24 @@ public class TaskService
         _logger = logger;
     }
 
-    public async Task<List<TaskItem>> GetAllAsync()
+    public async Task<List<TaskItem>> GetAllAsync(int userId)
     {
 
         _logger.LogInformation("Fetching all tasks from database.");
 
-        return await _db.Tasks.ToListAsync();
+        return await _db.Tasks
+            .Where(t => t.UserId == userId)
+            .ToListAsync();
 
     }
 
 
-    public async Task<TaskItem?> GetByIdAsync(int id)
+    public async Task<TaskItem?> GetByIdAsync(int id, int userId)
     {
         _logger.LogInformation("Fetching task with ID {TaskId}", id);
 
-        var task = await _db.Tasks.FindAsync(id);
+        var task = await _db.Tasks
+            .FirstOrDefaultAsync(t => t.UserId == userId && t.Id == id);
 
         if (task is null)
         {
@@ -41,15 +44,17 @@ public class TaskService
         return task;
     }
 
-    public async Task<TaskItem> CreateAsync(CreateTaskDtos dto)
+    public async Task<TaskItem> CreateAsync(CreateTaskDtos dto, int userId)
     {
         var task = new TaskItem
         {
             Title = dto.Title,
-            Description = dto.Description,
+            Description = dto.Description ?? "Task to do",
             DueDate = dto.DueDate,
             Status = dto.Status,
-            CreatedAt = DateTime.UtcNow
+            UserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         _db.Tasks.Add(task);
@@ -63,9 +68,10 @@ public class TaskService
     }
 
 
-    public async Task<TaskItem?> UpdateAsync(int id, UpdateTaskDto dto)
+    public async Task<TaskItem?> UpdateAsync(int id, UpdateTaskDto dto, int userId)
     {
-        var task = await _db.Tasks.FindAsync(id);
+        var task = await _db.Tasks
+            .FirstOrDefaultAsync(t => t.UserId == userId && t.Id == id);
         if (task is null)
         {
             _logger.LogWarning("Update failed. Task with ID {TaskId} not found.", id);
@@ -86,9 +92,9 @@ public class TaskService
         return task;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int userId)
     {
-        var task = await _db.Tasks.FindAsync(id);
+        var task = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
         if (task is null)
         {
             _logger.LogWarning("Delete failed. Task with ID {TaskId} not found.", id);
